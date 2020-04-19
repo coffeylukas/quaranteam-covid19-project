@@ -1,0 +1,234 @@
+---
+title: "QuaranTeam2"
+author: "Lucas Coffey, Drew Klaubert, David Parks, Arthur Presnetzov"
+date: "18 April 2020"
+output: pdf_document
+---
+
+```{r setup}
+library(EpiModel)
+set.seed(37)
+```
+
+
+
+Import the data.
+```{r}
+counties <- read.csv("EpiModel_Data.csv", stringsAsFactors = FALSE)
+str(counties)
+```
+
+
+
+Create variables needed for the model.
+```{r}
+# the infection probability rate
+inf_prob_rate <- 0.25
+
+# the infected death rate
+death_rate <- 0.0138
+
+# the infected recovery rate
+recovery_rate <- 1 / 24.7
+
+# per county activity rate
+# using the natural log of the per county population density as a proxy for 
+# transmissive acts per person per time period
+activity_rate <- log10(counties$pop_density)
+```
+
+
+
+Compute the SIR model for each county WITHOUT intervention.
+```{r}
+# number of time steps
+n_steps <- 90
+
+# create an empty list to capture the models
+sir_models_ni <- list()
+
+# instantiate the models and store them in a list
+index <- 1
+
+for (pop in counties$county_population) {
+  # assumes no births and no deaths from natural causes
+  param <- param.dcm(inf.prob = inf_prob_rate,
+                     act.rate = activity_rate[[index]],
+                     rec.rate = recovery_rate,
+                     a.rate = 0,
+                     ds.rate = 0,
+                     di.rate = death_rate,
+                     dr.rate = 0)
+  # assumes full population is susceptible, 1 infected person
+  init <- init.dcm(s.num = pop - 1, i.num = 1, r.num = 0)
+  control <- control.dcm(type = "SIR",
+                         nsteps = n_steps)
+  sir_model <- dcm(param, init, control)
+  sir_models_ni[[index]] <- sir_model
+  index <- index + 1
+}
+```
+
+
+
+Compute the SIR model for each county WITH intervention starting on day 7, reducing the probability of transmission by 70%.
+```{r}
+effectiveness <- 0.70
+start_day <- 7
+
+# number of time steps
+n_steps <- 90
+
+# create an empty list to capture the models
+sir_models_i <- list()
+
+# instantiate the models and store them in a list
+index <- 1
+
+for (pop in counties$county_population) {
+  # assumes no births and no deaths from natural causes
+  param <- param.dcm(inf.prob = inf_prob_rate,
+                     inter.eff = effectiveness,
+                     inter.start = start_day,
+                     act.rate = activity_rate[[index]],
+                     rec.rate = recovery_rate,
+                     a.rate = 0,
+                     ds.rate = 0,
+                     di.rate = death_rate,
+                     dr.rate = 0)
+  # assumes full population is susceptible, 1 infected person
+  init <- init.dcm(s.num = pop - 1, i.num = 1, r.num = 0)
+  control <- control.dcm(type = "SIR",
+                         nsteps = n_steps)
+  sir_model <- dcm(param, init, control)
+  sir_models_i[[index]] <- sir_model
+  index <- index + 1
+}
+```
+
+
+
+Determine when the number of hospital beds would be fully occupied if 4% of those infected need hospitalization.
+```{r}
+# % of infected that need hospitalization
+hospitalization_rate <- 0.04
+
+# create empty arrays to capture the results
+icu_no_i <- rep(NA, length(counties$name))
+normal_no_i <- rep(NA, length(counties$name))
+max_inf_no_i <- rep(NA, length(counties$name))
+icu_i <- rep(NA, length(counties$name))
+normal_i <- rep(NA, length(counties$name))
+max_inf_i <- rep(NA, length(counties$name))
+
+
+for (i in 1:length(counties$name)) {
+  # NO INTERVENTION ***********************************************************
+  # number of hospitalized patients per day
+  infected <- as.data.frame(sir_models_ni[[i]])$i.num
+  hospitalized <- floor(infected * hospitalization_rate)
+  total_beds <- counties$icu_bed_count[i] + counties$inpatient_bed_count[i]
+  
+  # get the day when the number of infected needing hospitalization
+  # exceeds icu capacity
+  icu_no_i[i] <- which.max(hospitalized > counties$icu_bed_count[i])
+  
+  # get the day when the number of infected needing hospitalization
+  # exceeds total bed capacity
+  normal_no_i[i] <- which.max(hospitalized > total_beds)
+  
+  # get the maximum number of infected
+  max_inf_no_i[i] <- round(max(infected))
+  # NO INTERVENTION ***********************************************************
+  # ***************************************************************************
+  # INTERVENTION **************************************************************
+  # number of hospitalized patients per day
+  infected <- as.data.frame(sir_models_i[[i]])$i.num
+  hospitalized <- floor(infected * hospitalization_rate)
+  
+  # get the day when the number of infected needing hospitalization
+  # exceeds icu capacity
+  icu_i[i] <- which.max(hospitalized > counties$icu_bed_count[i])
+  
+  # get the day when the number of infected needing hospitalization
+  # exceeds total bed capacity
+  normal_i[i] <- which.max(hospitalized > total_beds)
+  
+  # get the maximum number of infected
+  max_inf_i[i] <- round(max(infected))
+  # INTERVENTION **************************************************************
+}
+
+# manually correct for counties without hospital beds
+icu_no_i[counties$icu_bed_count == 0] <- 0
+normal_no_i[counties$inpatient_bed_count == 0] <- 0
+icu_i[counties$icu_bed_count == 0] <- 0
+normal_i[counties$inpatient_bed_count == 0] <- 0
+
+# create a table of the results
+results <- cbind(counties$name,
+                 icu_no_i,
+                 normal_no_i,
+                 max_inf_no_i,
+                 icu_i,
+                 normal_i,
+                 max_inf_i)
+colnames(results) <- c("County",
+                       "FCICU-No I",
+                       "FCIPB-No I",
+                       "MaxInf-No I",
+                       "FC ICU-I",
+                       "FC IPB-I",
+                       "Max Inf-I")
+print(as.table(results))
+```
+
+
+
+Plot the results
+```{r}
+for (i in 1:length(counties$name)) {
+  # WITH INTERVENTION *******************************************************
+  # plot the results of the SIR model
+  time <- c(1:n_steps)
+  
+  plot(time, as.data.frame(sir_models_ni[[i]])$s.num,
+       type = "l", lwd = 3, col = '#3333FF',
+       main = paste(counties$name[i], "w\\o Intervention"),
+       xlab = "Days", ylab = "Population",
+       xlim = c(1, n_steps),
+       ylim = c(0, counties$county_population[i] * 1.1))
+  lines(time, as.data.frame(sir_models_ni[[i]])$i.num,
+        lwd = 3, col = '#FF3300')
+  lines(time, as.data.frame(sir_models_ni[[i]])$r.num,
+        lwd = 3, col = '#00CC00')
+  legend(x="topright", c('Susceptible', 'Infected', 'Recovered'),
+         col = c('#3333FF','#FF3300','#00CC00'), pch = 16, cex = 0.8)
+  
+  # plot the number of daily deaths
+  plot(sir_models_ni[[i]], y = "di.flow", lwd = 4, col = "firebrick",
+       main = paste(counties$name[i], "Daily Deaths w\\o Intervention"))
+  # WITH INTERVENTION *******************************************************
+  # *************************************************************************
+  # WITHOUT INTERVENTION ****************************************************
+  # plot the results of the SIR model
+  time <- c(1:n_steps)
+  
+  plot(time, as.data.frame(sir_models_i[[i]])$s.num,
+       type = "l", lwd = 3, col = '#3333FF',
+       main = paste(counties$name[i], "with Intervention"),
+       xlab = "Days", ylab = "Population",
+       xlim = c(1, n_steps),
+       ylim = c(0, counties$county_population[i] * 1.1))
+  lines(time, as.data.frame(sir_models_i[[i]])$i.num,
+        lwd = 3, col = '#FF3300')
+  lines(time, as.data.frame(sir_models_i[[i]])$r.num,
+        lwd = 3, col = '#00CC00')
+  legend(x="topright", c('Susceptible', 'Infected', 'Recovered'),
+         col = c('#3333FF','#FF3300','#00CC00'), pch = 16, cex = 0.8)
+  
+  # plot the number of daily deaths
+  plot(sir_models_i[[i]], y = "di.flow", lwd = 4, col = "firebrick",
+       main = paste(counties$name[i], "Daily Deaths with Intervention"))
+}
+```

@@ -1,0 +1,25 @@
+name,county,icu_bed_count,inpatient_bed_count,pop_density,county_population
+Allegany,1,15,316,172.1,71977
+Anne Arundel,3,80,748,936.2,567696
+Baltimore City,5,171,1317,6760.1,827625
+Baltimore County,510,658,3953,1199.4,614700
+Calvert,9,8,139,260.2,91082
+Caroline,11,0,0,100.5,32875
+Carroll,13,12,143,369.8,167522
+Cecil,15,9,109,243.6,102517
+Charles,17,20,110,234.8,157671
+Dorchester,19,0,47,33.2,32261
+Frederick,21,0,281,358.5,248472
+Garrett,23,4,59,45.7,29376
+Harford,25,20,211,471,251025
+Howard,27,34,244,1181,315327
+Kent,29,0,124,48.4,19593
+Montgomery,31,222,1663,1982.6,1040133
+Prince George's,33,95,671,1773.7,906202
+Queen Anne's,35,0,0,94.8,49355
+St. Mary's,37,12,91,141.9,111531
+Somerset,39,0,89,42.9,25737
+Talbot,41,0,132,79.5,37211
+Washington,43,24,278,318.6,149811
+Wicomico,45,24,302,250.8,102172
+Worcester,47,0,45,74.2,51564

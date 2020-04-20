@@ -1,7 +1,7 @@
 ---
 title: "QuaranTeam2"
-author: "Lucas Coffey, Drew Klaubert, David Parks, Arthur Presnetzov"
-date: "19 April 2020"
+author: "Lukas Coffey, Drew Klaubert, David Parks, Arthur Presnetsov"
+date: "20 April 2020"
 output: pdf_document
 ---
 

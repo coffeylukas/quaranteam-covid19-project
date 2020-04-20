@@ -1,8 +1,8 @@
 name,county,icu_bed_count,inpatient_bed_count,pop_density,county_population
 Allegany,1,15,316,172.1,71977
 Anne Arundel,3,80,748,936.2,567696
-Baltimore City,5,171,1317,6760.1,827625
-Baltimore County,510,658,3953,1199.4,614700
+Baltimore City,510,658,3953,6760.1,614700
+Baltimore County,5,171,1317,1199.4,827625
 Calvert,9,8,139,260.2,91082
 Caroline,11,0,0,100.5,32875
 Carroll,13,12,143,369.8,167522

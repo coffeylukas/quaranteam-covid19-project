@@ -45,9 +45,18 @@ ggplot(counties, aes(x = avg_covid_19_ssi_risk)) +
        color = "Social Factor")
 
 
+maryland.counties <- us_map(regions = "counties") %>%
+  data.frame() %>%
+  filter(abbr == "MD") %>%
+  mutate(id = seq(1:nrow(maryland.counties)))
 
+plot_usmap("counties",
+           include = "MD",
+           values = avg.county.risk$avg_covid_19_ssi_risk,
+           color = "gray") +
+  scale_fill_continuous(
+    low = "white", high = "lightblue", name = "COVID-19 Risk", label = scales::comma
+  )
 
-
-
-
-
+ggplot(maryland.counties) +
+  geom_map(aes(map_id = id), map = maryland.counties)
